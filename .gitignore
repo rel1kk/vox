@@ -1,0 +1,13 @@
+node_modules/
+vox-data.json
+sessions/
+public/uploads/*
+public/voices/*
+public/music/*
+public/gifs/*
+public/avatars/*
+!public/uploads/.gitkeep
+!public/voices/.gitkeep
+!public/music/.gitkeep
+!public/gifs/.gitkeep
+!public/avatars/.gitkeep

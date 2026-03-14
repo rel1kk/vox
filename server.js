@@ -691,4 +691,65 @@ app.get('/api/users/:username/qr', auth, (req,res) => {
 });
 
 
+// ── CLEAR FEED (admin) ────────────────────────────────────────
+app.post('/api/admin/clear-feed', auth, adminOnly, (req,res) => {
+  db.get('posts').remove().write();
+  db.get('likes').remove().write();
+  db.get('comments').remove().write();
+  db.get('reposts').remove().write();
+  db.get('post_views').remove().write();
+  db.get('bookmarks').remove().write();
+  db.get('stories').remove().write();
+  db.get('polls').remove().write();
+  db.get('poll_votes').remove().write();
+  // Reset post counters
+  db.set('_counters.posts', 1).write();
+  db.set('_counters.comments', 1).write();
+  db.set('_counters.reposts', 1).write();
+  db.set('_counters.stories', 1).write();
+  db.set('_counters.polls', 1).write();
+  res.json({ok:true});
+});
+
+// ── CAPTCHA ───────────────────────────────────────────────────
+const captchas = {}; // token -> {answer, ts}
+
+app.get('/api/captcha', (req,res) => {
+  const ops = ['+','-','*'];
+  const op = ops[Math.floor(Math.random()*ops.length)];
+  let a = Math.floor(Math.random()*9)+1;
+  let b = Math.floor(Math.random()*9)+1;
+  if(op==='-') { if(a<b){let t=a;a=b;b=t;} }
+  if(op==='*') { a=Math.floor(Math.random()*5)+1; b=Math.floor(Math.random()*5)+1; }
+  const answer = op==='+'?a+b:op==='-'?a-b:a*b;
+  const token = Math.random().toString(36).slice(2)+Date.now().toString(36);
+  captchas[token] = {answer, ts:Date.now()};
+  // cleanup old captchas
+  Object.keys(captchas).forEach(k=>{ if(Date.now()-captchas[k].ts>300000) delete captchas[k]; });
+  res.json({token, question:`${a} ${op} ${b} = ?`});
+});
+
+app.post('/api/captcha/verify', (req,res) => {
+  const {token, answer} = req.body;
+  const cap = captchas[token];
+  if(!cap) return res.json({ok:false, error:'Капча устарела'});
+  if(Date.now()-cap.ts>120000) { delete captchas[token]; return res.json({ok:false,error:'Капча устарела'}); }
+  if(parseInt(answer)!==cap.answer) return res.json({ok:false,error:'Неверный ответ'});
+  delete captchas[token];
+  res.json({ok:true, captcha_pass:token+'_ok'});
+});
+
+// Store passed captchas in session
+app.post('/api/captcha/session', (req,res) => {
+  const {pass} = req.body;
+  if(pass && pass.endsWith('_ok')) { req.session.captcha_ok=true; req.session.captcha_ts=Date.now(); }
+  res.json({ok:!!req.session.captcha_ok});
+});
+
+app.get('/api/captcha/status', (req,res) => {
+  const ok = req.session.captcha_ok && req.session.captcha_ts && (Date.now()-req.session.captcha_ts)<3600000;
+  res.json({ok:!!ok});
+});
+
+
 app.listen(PORT,()=>console.log(`\n🚀 VOX: http://localhost:${PORT}\n`));

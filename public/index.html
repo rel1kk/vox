@@ -229,6 +229,16 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 @media(max-width:768px){.sidebar{display:none}.main-content{margin-left:0;padding:14px}}
+/* MOBILE NAV */
+#mobile-nav-btn{display:none;position:fixed;top:14px;right:14px;z-index:500;background:var(--accent);color:#000;border:none;width:44px;height:44px;border-radius:50%;font-size:20px;cursor:pointer;box-shadow:0 4px 16px #00000060;align-items:center;justify-content:center}
+#mobile-menu{display:none;position:fixed;inset:0;z-index:400;background:#00000090;backdrop-filter:blur(6px)}
+#mobile-menu.open{display:block}
+#mobile-menu-inner{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-radius:20px 20px 0 0;padding:16px 14px 32px;display:flex;flex-direction:column;gap:4px}
+#mobile-menu-inner .nav-item{font-size:16px;padding:14px 16px}
+.mobile-user-bar{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.mobile-user-name{font-size:15px;font-weight:700;display:flex;align-items:center;gap:5px}
+.mobile-user-handle{font-size:12px;color:var(--muted);font-family:'Space Mono',monospace}
+@media(max-width:768px){#mobile-nav-btn{display:flex}}
 /* TOASTS */
 #toast-container{position:fixed;bottom:22px;right:22px;z-index:9999;display:flex;flex-direction:column-reverse;gap:8px;pointer-events:none;align-items:flex-end}
 .toast{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 16px;display:flex;align-items:center;gap:11px;min-width:240px;max-width:310px;box-shadow:0 8px 28px #00000070;animation:toastIn .35s cubic-bezier(.34,1.56,.64,1);pointer-events:all}
@@ -395,6 +405,33 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
 
 <!-- APP -->
 <div id="app">
+  <!-- MOBILE NAV BUTTON -->
+  <button id="mobile-nav-btn" onclick="toggleMobileMenu()">☰</button>
+
+  <!-- MOBILE MENU -->
+  <div id="mobile-menu" onclick="closeMobileMenu()">
+    <div id="mobile-menu-inner" onclick="event.stopPropagation()">
+      <div class="mobile-user-bar">
+        <div class="ava" id="mob-ava" style="width:42px;height:42px;font-size:16px"></div>
+        <div>
+          <div class="mobile-user-name" id="mob-name"></div>
+          <div class="mobile-user-handle" id="mob-handle"></div>
+        </div>
+      </div>
+      <button class="nav-item" onclick="mobileNav('feed')"><span class="nav-icon">🏠</span>Лента</button>
+      <button class="nav-item" onclick="mobileNav('explore')"><span class="nav-icon">🔍</span>Обзор</button>
+      <button class="nav-item" onclick="mobileNav('notifications')"><span class="nav-icon">🔔</span>Уведомления<span class="badge" id="mob-notif-badge" style="display:none">0</span></button>
+      <button class="nav-item" onclick="mobileNav('messages')"><span class="nav-icon">✉️</span>Сообщения</button>
+      <button class="nav-item" onclick="mobileNav('bookmarks')"><span class="nav-icon">🔖</span>Закладки</button>
+      <button class="nav-item" onclick="mobileNav('notes')"><span class="nav-icon">📓</span>Заметки</button>
+      <button class="nav-item" onclick="mobileNav('mentions')"><span class="nav-icon">@</span>Упоминания</button>
+      <button class="nav-item" onclick="mobileNav('profile')"><span class="nav-icon">👤</span>Мой профиль</button>
+      <button class="nav-item" id="mob-nav-admin" onclick="mobileNav('admin')" style="display:none"><span class="nav-icon">🛡️</span>Админ</button>
+      <button class="nav-item" onclick="mobileNav('settings')"><span class="nav-icon">⚙️</span>Настройки</button>
+      <button class="nav-item" onclick="doLogout();closeMobileMenu()" style="color:var(--a2)"><span class="nav-icon">🚪</span>Выйти</button>
+    </div>
+  </div>
+
   <nav class="sidebar">
     <div class="logo">VOX</div>
     <button class="nav-item active" id="nav-feed" onclick="showPage('feed',this)"><span class="nav-icon">🏠</span>Лента</button>
@@ -763,8 +800,8 @@ async function doRegister(){const d=await api('/api/register',{method:'POST',bod
 async function doLogout(){await api('/api/logout',{method:'POST'});ME=null;currentChatUserId=null;clearInterval(chatPollTimer);clearInterval(feedPollTimer);$('app').style.display='none';$('auth-screen').style.display='flex';$('li-u').value='';$('li-p').value='';$('li-err').textContent='';}
 
 async function init(){const d=await api('/api/me');if(d.user){ME=d.user;startApp();}}
-function startApp(){$('auth-screen').style.display='none';$('app').style.display='block';setSidebarUser();setComposerAva();if(ME.is_admin)$('nav-admin').style.display='flex';loadFeed();loadNotifBadge();setInterval(loadNotifBadge,20000);feedPollTimer=setInterval(checkNewPosts,10000);}
-function setSidebarUser(){const el=$('sb-ava');if(ME.avatar){el.innerHTML=`<img src="${ME.avatar}" alt="">`;el.style.background='';}else{el.innerHTML='';el.style.background=ME.color||'#c8ff00';el.style.color='#000';el.textContent=(ME.name||'?').slice(0,2).toUpperCase();}$('sb-name').innerHTML=esc(ME.name)+vBadge(ME.verified);$('sb-handle').textContent='@'+ME.username;}
+function startApp(){$('auth-screen').style.display='none';$('app').style.display='block';setSidebarUser();setComposerAva();updateMobileUser();if(ME.is_admin)$('nav-admin').style.display='flex';loadFeed();loadNotifBadge();setInterval(loadNotifBadge,20000);feedPollTimer=setInterval(checkNewPosts,10000);}
+function setSidebarUser(){const el=$('sb-ava');if(ME.avatar){el.innerHTML=`<img src="${ME.avatar}" alt="">`;el.style.background='';}else{el.innerHTML='';el.style.background=ME.color||'#c8ff00';el.style.color='#000';el.textContent=(ME.name||'?').slice(0,2).toUpperCase();}$('sb-name').innerHTML=esc(ME.name)+vBadge(ME.verified);$('sb-handle').textContent='@'+ME.username;updateMobileUser();}
 function setComposerAva(){const el=$('comp-ava');if(ME.avatar){el.innerHTML=`<img src="${ME.avatar}" alt="">`;el.style.background='';}else{el.innerHTML='';el.style.background=ME.color||'#c8ff00';el.style.color='#000';el.textContent=(ME.name||'?').slice(0,2).toUpperCase();}}
 
 // ─── NAVIGATION ──────────────────────────────────────────────
@@ -947,7 +984,7 @@ function doSearch(){
 // ─── NOTIFICATIONS ───────────────────────────────────────────
 async function loadNotifications(){const d=await api('/api/notifications');$('notif-list').innerHTML=(d.notifications||[]).map(n=>`<div class="notif-item ${n.read?'':'unread'}"><div class="notif-icon">${n.icon}</div><div><div class="notif-text">${n.text}</div><div class="notif-time">${n.time_ago}</div></div></div>`).join('')||'<div class="empty-state"><div class="empty-icon">🔔</div><div>Нет уведомлений</div></div>';}
 async function markNotifsRead(){await api('/api/notifications/read',{method:'POST'});$('notif-badge').style.display='none';}
-async function loadNotifBadge(){const d=await api('/api/notifications');if(d.unread>0){$('notif-badge').style.display='';$('notif-badge').textContent=d.unread;}else $('notif-badge').style.display='none';}
+async function loadNotifBadge(){const d=await api('/api/notifications');if(d.unread>0){$('notif-badge').style.display='';$('notif-badge').textContent=d.unread;if($('mob-notif-badge')){$('mob-notif-badge').style.display='';$('mob-notif-badge').textContent=d.unread;}}else{$('notif-badge').style.display='none';if($('mob-notif-badge'))$('mob-notif-badge').style.display='none';}}
 
 // ─── MESSAGES ────────────────────────────────────────────────
 async function loadConversations(){const d=await api('/api/conversations');const body=$('conv-list-body');body.innerHTML=(d.conversations||[]).map(c=>`<div class="conv-item ${currentChatUserId===c.user.id?'active':''}" onclick="openChat(${c.user.id},'${esc(c.user.name)}','${c.user.color}','${c.user.avatar||''}','${c.user.username||''}')">${avatarHTML(c.user,36)}<div class="conv-info"><div class="conv-name">${esc(c.user.name)}${vBadge(c.user.verified)}</div><div class="conv-preview">${esc(c.last_message||'')}</div></div></div>`).join('')||'<div style="padding:18px;color:var(--muted);font-size:12px;text-align:center">Нет диалогов</div>';}
@@ -1467,6 +1504,28 @@ loadAdminPanel=async function(){
     </div>`).join(''):'<div style="color:var(--muted);font-size:13px;padding:10px">Нет жалоб</div>');
 };
 async function resolveReport(id){ await api('/api/admin/reports/'+id+'/resolve',{method:'POST'}); loadAdminPanel(); }
+
+// ─── MOBILE MENU ─────────────────────────────────────────────
+function toggleMobileMenu(){
+  const m=$('mobile-menu');
+  m.classList.toggle('open');
+}
+function closeMobileMenu(){
+  $('mobile-menu').classList.remove('open');
+}
+function mobileNav(page){
+  closeMobileMenu();
+  showPage(page,$('nav-'+page));
+}
+function updateMobileUser(){
+  if(!ME) return;
+  const el=$('mob-ava');
+  if(ME.avatar){el.innerHTML=`<img src="${ME.avatar}" alt="">`;el.style.background='';}
+  else{el.innerHTML='';el.style.background=ME.color||'#c8ff00';el.style.color='#000';el.textContent=(ME.name||'?').slice(0,2).toUpperCase();}
+  $('mob-name').innerHTML=esc(ME.name)+vBadge(ME.verified);
+  $('mob-handle').textContent='@'+ME.username;
+  if(ME.is_admin) $('mob-nav-admin').style.display='flex';
+}
 
 // ─── 2FA ─────────────────────────────────────────────────────
 async function toggle2FA(){

@@ -1,8 +1,13 @@
 const low = require('lowdb');
 const FileSync = require('lowdb/adapters/FileSync');
 const path = require('path');
+const fs = require('fs');
 
-const adapter = new FileSync(path.join(__dirname, 'vox-data.json'));
+// Use persistent volume if available, otherwise local
+const dataDir = fs.existsSync('/app/data') ? '/app/data' : __dirname;
+const dbPath = path.join(dataDir, 'vox-data.json');
+
+const adapter = new FileSync(dbPath);
 const db = low(adapter);
 
 db.defaults({

@@ -31,6 +31,11 @@ db.defaults({
   post_views: [],
   msg_reactions: [],
   login_history: [],
+  vcoin_balances: [],
+  vcoin_daily: [],
+  vcoin_promos: [],
+  username_market: [],
+  moderators: [],
   _counters: { users:1, posts:1, messages:1, notifications:1, comments:1, reposts:1, stories:1, polls:1, drafts:1, notes:1, reports:1 }
 }).write();
 

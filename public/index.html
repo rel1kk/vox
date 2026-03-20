@@ -148,6 +148,8 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
 .notif-time{font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;margin-top:2px}
 /* MESSAGES */
 .messages-wrap{display:flex;height:calc(100vh - 110px);min-height:540px;background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+@media(max-width:768px){.messages-wrap{height:calc(100vh - 80px);border-radius:0;border:none;flex-direction:column}.conv-list{width:100%;border-right:none;border-bottom:1px solid var(--border);max-height:50vh}.conv-list.hidden{display:none}.chat-area{flex:1;min-height:0}.chat-area.hidden{display:none}.mob-back-btn{display:flex!important}}
+.mob-back-btn{display:none;background:none;border:none;color:var(--text);font-size:18px;cursor:pointer;padding:0;margin-right:4px}
 .conv-list{width:280px;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
 .conv-list-header{padding:14px 16px;font-size:14px;font-weight:800;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .btn-nc{background:var(--accent);color:#000;border:none;padding:4px 11px;border-radius:9px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:800;font-size:11px}
@@ -228,7 +230,18 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-@media(max-width:768px){.sidebar{display:none}.main-content{margin-left:0;padding:14px}}
+@media(max-width:768px){
+  .sidebar{display:none}
+  .main-content{margin-left:0;padding:14px}
+  .messages-wrap{flex-direction:column;height:calc(100vh - 140px)}
+  .conv-list{width:100%;max-height:220px;border-right:none;border-bottom:1px solid var(--border)}
+  .chat-area{flex:1;min-height:0}
+  .chat-messages{flex:1;overflow-y:auto}
+  .msg-bubble{max-width:100%;word-break:break-word;overflow-wrap:break-word}
+  .chat-msg{max-width:85%}
+  .msg-bubble audio{width:160px}
+  .msg-bubble img{max-width:180px}
+}
 /* MOBILE NAV */
 #mobile-nav-btn{display:none;position:fixed;top:14px;right:14px;z-index:500;background:var(--accent);color:#000;border:none;width:44px;height:44px;border-radius:50%;font-size:20px;cursor:pointer;box-shadow:0 4px 16px #00000060;align-items:center;justify-content:center}
 #mobile-menu{display:none;position:fixed;inset:0;z-index:400;background:#00000090;backdrop-filter:blur(6px)}
@@ -457,6 +470,10 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
     </button>
     <button class="nav-item" id="nav-messages" onclick="showPage('messages',this)"><span class="nav-icon">✉️</span>Сообщения</button>
     <button class="nav-item" id="nav-profile" onclick="showPage('profile',this)"><span class="nav-icon">👤</span>Мой профиль</button>
+    <button class="nav-item" id="nav-vcoin" onclick="showPage('vcoin',this)"><span class="nav-icon">🪙</span>VCOIN <span id="vcoin-bal" style="margin-left:auto;font-size:11px;color:var(--accent);font-family:'Space Mono',monospace">0</span></button>
+    <button class="nav-item" id="nav-market" onclick="showPage('market',this)"><span class="nav-icon">🏪</span>Рынок</button>
+    <button class="nav-item" id="nav-vcoin" onclick="showPage('vcoin',this)"><span class="nav-icon">🪙</span>VCOIN</button>
+    <button class="nav-item" id="nav-market" onclick="showPage('market',this)"><span class="nav-icon">🏪</span>Рынок</button>
     <button class="nav-item" id="nav-bookmarks" onclick="showPage('bookmarks',this)"><span class="nav-icon">🔖</span>Закладки</button>
     <button class="nav-item" id="nav-notes" onclick="showPage('notes',this)"><span class="nav-icon">📓</span>Заметки</button>
     <button class="nav-item" id="nav-mentions" onclick="showPage('mentions',this)"><span class="nav-icon">@</span>Упоминания</button>
@@ -484,7 +501,7 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
       <div class="composer" style="position:relative">
         <div class="composer-row">
           <div class="ava" id="comp-ava" style="width:40px;height:40px;font-size:15px;flex-shrink:0"></div>
-          <textarea class="ctarea" id="post-text" placeholder="Что происходит?" maxlength="500" oninput="updateCC()"></textarea>
+          <textarea class="ctarea" id="post-text" placeholder="Что происходит?" maxlength="100" oninput="updateCC()"></textarea>
         </div>
         <div id="post-preview" class="preview-wrap">
           <img id="pp-img" style="display:none"><video id="pp-voice" controls style="display:none;max-width:100%">
@@ -507,7 +524,7 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:11px;color:var(--muted);font-family:'Space Mono',monospace" id="char-count">500</span>
+            <span style="font-size:11px;color:var(--muted);font-family:'Space Mono',monospace" id="char-count">100</span>
             <button class="btn-post" onclick="publishPost()">Опубликовать</button>
           </div>
         </div>
@@ -541,7 +558,7 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
     <div class="page" id="page-messages">
       <div class="feed-title" style="margin-bottom:14px">✉️ Сообщения</div>
       <div class="messages-wrap">
-        <div class="conv-list">
+        <div class="conv-list" id="conv-list-panel">
           <div class="conv-list-header">Диалоги <button class="btn-nc" onclick="openNewChatModal()">+ Новый</button></div>
           <div class="conv-list-body" id="conv-list-body"></div>
         </div>
@@ -562,6 +579,45 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
 
     <!-- STORIES -->
     <div class="page" id="page-stories" style="display:none"></div>
+
+    <!-- VCOIN -->
+    <div class="page" id="page-vcoin">
+      <div class="feed-title" style="margin-bottom:18px">🪙 VCOIN</div>
+      <div style="background:linear-gradient(135deg,#1a1a0a,#0a1a0a);border:1px solid #c8ff0030;border-radius:var(--r);padding:28px;margin-bottom:16px;text-align:center">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px;font-family:'Space Mono',monospace">Ваш баланс</div>
+        <div style="font-size:56px;font-weight:800;color:var(--accent)" id="vcoin-balance-big">0</div>
+        <div style="font-size:14px;color:var(--muted)">VCOIN</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:14px">
+        <div style="font-size:15px;font-weight:800;margin-bottom:14px;color:var(--accent)">🎁 Ежедневный бонус</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Получай 50 VCOIN каждые 24 часа. Максимум 2500 VCOIN.</p>
+        <button onclick="claimDaily()" style="width:100%;background:var(--accent);color:#000;border:none;padding:14px;border-radius:10px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;cursor:pointer">Получить 50 VCOIN</button>
+        <div id="daily-msg" style="text-align:center;font-size:13px;margin-top:10px;min-height:20px"></div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:14px">
+        <div style="font-size:15px;font-weight:800;margin-bottom:14px;color:var(--accent)">🎟️ Промокод</div>
+        <div style="display:flex;gap:10px">
+          <input class="form-input" id="promo-input" placeholder="Введи промокод" style="font-size:14px;padding:11px 14px">
+          <button onclick="usePromo()" style="background:var(--accent);color:#000;border:none;padding:0 18px;border-radius:10px;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap">Применить</button>
+        </div>
+        <div id="promo-msg" style="font-size:13px;margin-top:10px;min-height:20px"></div>
+      </div>
+    </div>
+
+    <!-- MARKET -->
+    <div class="page" id="page-market">
+      <div class="feed-title" style="margin-bottom:18px">🏪 Рынок юзернеймов</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:800;margin-bottom:12px">Продать свой юзернейм</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <input class="form-input" id="market-username" placeholder="@username" style="flex:1;font-size:13px;padding:10px 13px">
+          <input class="form-input" id="market-price" type="number" placeholder="Цена (20-2500)" style="width:160px;font-size:13px;padding:10px 13px">
+          <button onclick="listUsername()" style="background:var(--accent);color:#000;border:none;padding:10px 18px;border-radius:10px;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;cursor:pointer">Выставить</button>
+        </div>
+        <div id="market-msg" style="font-size:12px;margin-top:8px;color:var(--muted)"></div>
+      </div>
+      <div id="market-listings"></div>
+    </div>
 
     <!-- BOOKMARKS -->
     <div class="page" id="page-bookmarks">
@@ -584,6 +640,56 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
     <div class="page" id="page-mentions">
       <div class="feed-title" style="margin-bottom:18px">@ Упоминания</div>
       <div id="mentions-list"></div>
+    </div>
+
+    <!-- VCOIN -->
+    <div class="page" id="page-vcoin">
+      <div class="feed-title" style="margin-bottom:18px">🪙 VCOIN</div>
+      <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #c8ff0030;border-radius:var(--r);padding:24px;margin-bottom:16px;text-align:center">
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px;font-family:'Space Mono',monospace">ВАШ БАЛАНС</div>
+        <div style="font-size:56px;font-weight:800;color:#c8ff00" id="vcoin-balance">0</div>
+        <div style="font-size:14px;color:var(--muted)">VCOIN</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;text-align:center">
+          <div style="font-size:28px;margin-bottom:8px">🎁</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px">Ежедневный бонус</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px">+50 VCOIN раз в день</div>
+          <button onclick="claimDaily()" class="btn-post" style="width:100%">Получить</button>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;text-align:center">
+          <div style="font-size:28px;margin-bottom:8px">🎟️</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:4px">Промокод</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Введи код и получи монеты</div>
+          <input id="promo-input" class="form-input" placeholder="VCOIN100" style="font-size:13px;padding:8px 12px;margin-bottom:8px">
+          <button onclick="usePromo()" class="btn-post" style="width:100%">Активировать</button>
+        </div>
+      </div>
+      <div id="vcoin-msg" style="text-align:center;font-size:13px;min-height:20px;margin-bottom:10px"></div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">ℹ️ Как заработать VCOIN</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.8">
+          🎁 Ежедневный бонус — 50 VCOIN<br>
+          🎟️ Промокоды — до 100 VCOIN<br>
+          🏪 Продажа юзернеймов на рынке<br>
+          📊 Максимум: 2500 VCOIN
+        </div>
+      </div>
+    </div>
+
+    <!-- MARKET -->
+    <div class="page" id="page-market">
+      <div class="feed-title" style="margin-bottom:18px">🏪 Рынок юзернеймов</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px">Выставить свой юзернейм</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <input id="market-username" class="form-input" placeholder="@username" style="flex:1;font-size:13px;padding:10px 13px">
+          <input id="market-price" class="form-input" type="number" placeholder="Цена (20-2500)" style="width:150px;font-size:13px;padding:10px 13px">
+          <button onclick="listUsername()" class="btn-post">Выставить</button>
+        </div>
+        <div id="market-msg" style="font-size:12px;margin-top:8px;min-height:16px"></div>
+      </div>
+      <div id="market-listings"></div>
     </div>
 
     <!-- SETTINGS -->
@@ -636,6 +742,28 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
     <!-- ADMIN -->
     <div class="page" id="page-admin">
       <div class="feed-title" style="margin-bottom:18px">⚙️ Панель администратора</div>
+      <div class="admin-panel">
+        <div class="admin-title">🛡️ Модераторы</div>
+        <div id="admin-mod-list"></div>
+      </div>
+      <div class="admin-panel">
+        <div class="admin-title">🛡️ Модераторы</div>
+        <div style="display:flex;gap:10px;margin-bottom:12px">
+          <input id="mod-username" class="form-input" placeholder="@username" style="flex:1;font-size:13px;padding:10px 13px">
+          <button onclick="addModerator()" class="btn-post">+ Назначить</button>
+        </div>
+        <div id="moderators-list"></div>
+      </div>
+      <div class="admin-panel">
+        <div class="admin-title">✏️ Изменить имя/юзернейм</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+          <input id="rename-uid" class="form-input" type="number" placeholder="ID пользователя" style="width:140px;font-size:13px;padding:10px 13px">
+          <input id="rename-name" class="form-input" placeholder="Новое имя" style="flex:1;font-size:13px;padding:10px 13px">
+          <input id="rename-username" class="form-input" placeholder="Новый юзернейм" style="flex:1;font-size:13px;padding:10px 13px">
+          <button onclick="doRename()" class="btn-post">Сохранить</button>
+        </div>
+        <div id="rename-msg" style="font-size:12px;min-height:16px"></div>
+      </div>
       <div class="admin-panel" style="border-color:#ff3c6e40">
         <div class="admin-title" style="color:var(--a2)">⚠️ Опасная зона</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -701,6 +829,19 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
     <div class="form-group"><label class="form-label">Сообщение</label><input class="form-input" id="nc-text" placeholder="Привет!"></div>
     <button class="btn-primary" onclick="sendNewMsg()">Отправить →</button>
     <div class="auth-error" id="nc-err"></div>
+  </div>
+</div>
+
+<!-- EDIT USER MODAL -->
+<div class="modal-overlay" id="edituser-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('edituser-modal')">✕</button>
+    <div class="modal-title">✏️ Редактировать пользователя</div>
+    <input type="hidden" id="edituser-id">
+    <div class="form-group"><label class="form-label">Имя (мин 4 символа)</label><input class="form-input" id="edituser-name" placeholder="Имя"></div>
+    <div class="form-group"><label class="form-label">Юзернейм (мин 4 символа)</label><input class="form-input" id="edituser-username" placeholder="username"></div>
+    <button class="btn-primary" onclick="doEditUser()">Сохранить</button>
+    <div class="auth-error" id="edituser-err"></div>
   </div>
 </div>
 
@@ -976,7 +1117,7 @@ async function deleteComment(cid,postId){await api(`/api/comments/${cid}`,{metho
 // POST MEDIA
 function handlePostImg(e){const f=e.target.files[0];if(!f)return;const url=URL.createObjectURL(f);pendingPostMedia={type:'image',file:f,url};$('pp-img').src=url;$('pp-img').style.display='block';$('pp-voice').style.display='none';$('pp-gif').style.display='none';$('post-preview').style.display='block';}
 function clearPostMedia(){pendingPostMedia=null;$('post-preview').style.display='none';$('pp-img').style.display='none';$('pp-voice').style.display='none';$('pp-gif').style.display='none';$('pi').value='';$('voice-btn').classList.remove('rec');}
-function updateCC(){$('char-count').textContent=500-$('post-text').value.length;}
+function updateCC(){$('char-count').textContent=100-$('post-text').value.length;}
 
 async function toggleVoiceRec(){
   if(!isRecording){
@@ -1066,11 +1207,14 @@ async function loadConversations(){const d=await api('/api/conversations');const
 
 async function openChat(userId,name,color,avatar,username){
   currentChatUserId=userId; clearInterval(chatPollTimer);
+  // Mobile: hide conv list show chat
+  if(window.innerWidth<=768){const cp=$('conv-list-panel');if(cp)cp.classList.add('hidden');}
   const area=$('chat-area');
   const avaHtml=avatar?`<div class="ava" style="width:34px;height:34px"><img src="${avatar}" alt=""></div>`:`<div class="ava" style="width:34px;height:34px;background:${color};color:#000;font-size:13px;font-weight:700">${name.slice(0,2).toUpperCase()}</div>`;
   area.innerHTML=`
-    <div class="chat-header" onclick="openUserProfile('${username||''}')">
-      ${avaHtml}<span class="ch-name">${esc(name)}</span>
+    <div class="chat-header">
+      <button class="mob-back-btn" onclick="mobileBackToConvList()">←</button>
+      <div onclick="openUserProfile('${username||''}')" style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer">${avaHtml}<span class="ch-name">${esc(name)}</span></div>
     </div>
     <div class="chat-messages" id="chat-messages"></div>
     <div class="chat-input-area">
@@ -1579,6 +1723,284 @@ loadAdminPanel=async function(){
     </div>`).join(''):'<div style="color:var(--muted);font-size:13px;padding:10px">Нет жалоб</div>');
 };
 async function resolveReport(id){ await api('/api/admin/reports/'+id+'/resolve',{method:'POST'}); loadAdminPanel(); }
+
+// ─── MOBILE BACK TO CONV LIST ────────────────────────────────
+function mobileBackToConvList(){
+  const cp=$('conv-list-panel');
+  if(cp) cp.classList.remove('hidden');
+  currentChatUserId=null;
+  clearInterval(chatPollTimer);
+  $('chat-area').innerHTML='<div class="chat-empty-state"><span style="font-size:38px">💬</span><span>Выбери диалог</span></div>';
+}
+
+// ─── VCOIN ────────────────────────────────────────────────────
+async function loadVcoinBalance(){
+  const d=await api('/api/vcoin/balance');
+  const bal=d.balance||0;
+  if($('vcoin-balance-big'))$('vcoin-balance-big').textContent=bal;
+  if($('vcoin-bal'))$('vcoin-bal').textContent=bal+'🪙';
+  return bal;
+}
+async function claimDaily(){
+  const d=await api('/api/vcoin/daily',{method:'POST'});
+  const msg=$('daily-msg');
+  if(d.error){msg.style.color='var(--a2)';msg.textContent='❌ '+d.error;}
+  else{msg.style.color='var(--accent)';msg.textContent='✅ +'+d.earned+' VCOIN! Баланс: '+d.balance;loadVcoinBalance();}
+}
+async function usePromo(){
+  const code=$('promo-input').value.trim().toUpperCase();
+  if(!code)return;
+  const d=await api('/api/vcoin/promo',{method:'POST',body:JSON.stringify({code})});
+  const msg=$('promo-msg');
+  if(d.error){msg.style.color='var(--a2)';msg.textContent='❌ '+d.error;}
+  else{msg.style.color='var(--accent)';msg.textContent='✅ +'+d.earned+' VCOIN! Баланс: '+d.balance;loadVcoinBalance();$('promo-input').value='';}
+}
+
+// ─── MARKET ───────────────────────────────────────────────────
+async function loadMarket(){
+  const d=await api('/api/market');
+  const el=$('market-listings');
+  const listings=d.listings||[];
+  el.innerHTML=listings.length?listings.map(l=>`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:13px;padding:15px;margin-bottom:10px;display:flex;align-items:center;gap:14px">
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:800;color:var(--accent)">@${esc(l.username)}</div>
+        <div style="font-size:12px;color:var(--muted)">Продавец: @${esc(l.seller_username)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:800;color:var(--accent)">${l.price} 🪙</div>
+        <button onclick="buyUsername(${l.id})" style="background:var(--accent);color:#000;border:none;padding:7px 14px;border-radius:9px;font-family:'Syne',sans-serif;font-weight:800;font-size:12px;cursor:pointer;margin-top:5px">Купить</button>
+      </div>
+    </div>`).join(''):'<div class="empty-state"><div class="empty-icon">🏪</div><div>Рынок пуст</div></div>';
+}
+async function listUsername(){
+  const username=$('market-username').value.trim().replace('@','');
+  const price=$('market-price').value;
+  const d=await api('/api/market/list',{method:'POST',body:JSON.stringify({username,price:parseInt(price)})});
+  const msg=$('market-msg');
+  if(d.error){msg.style.color='var(--a2)';msg.textContent='❌ '+d.error;}
+  else{msg.style.color='var(--accent)';msg.textContent='✅ Выставлено!';loadMarket();}
+}
+async function buyUsername(id){
+  if(!confirm('Купить этот юзернейм?'))return;
+  const d=await api('/api/market/buy/'+id,{method:'POST'});
+  if(d.error){toast('❌',d.error,'');}
+  else{toast('✅','Юзернейм куплен!','@'+d.new_username);loadMarket();loadVcoinBalance();}
+}
+
+// ─── ADMIN: MODERATORS + EDIT USER ───────────────────────────
+async function loadModList(){
+  const d=await api('/api/admin/users');
+  const mods=(d.users||[]).filter(u=>u.is_mod||u.username==='tigra');
+  const nonmods=(d.users||[]).filter(u=>!u.is_mod&&u.username!=='tigra');
+  $('admin-mod-list').innerHTML=`
+    <div style="margin-bottom:12px">
+      ${mods.map(u=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;background:var(--surface);border-radius:10px;padding:10px">
+        ${avatarHTML(u,32)}<span style="flex:1;font-size:13px;font-weight:700">${esc(u.name)} <span style="color:var(--muted)">@${u.username}</span></span>
+        ${u.username!=='tigra'?`<button class="btn-admin" style="background:#ff3c6e22;color:var(--a2);border:1px solid var(--a2)" onclick="setMod(${u.id},false)">Снять</button>`:'<span style="font-size:11px;color:var(--accent)">Админ</span>'}
+      </div>`).join('')||'<div style="color:var(--muted);font-size:12px">Нет модераторов</div>'}
+    </div>
+    <div style="margin-bottom:8px;font-size:13px;font-weight:700;color:var(--muted)">Назначить модератора:</div>
+    <select id="mod-select" class="form-input" style="font-size:13px;padding:9px 12px;margin-bottom:10px">
+      <option value="">Выбери пользователя</option>
+      ${nonmods.map(u=>`<option value="${u.id}">${esc(u.name)} (@${u.username})</option>`).join('')}
+    </select>
+    <button onclick="setModFromSelect()" style="background:var(--accent);color:#000;border:none;padding:9px 18px;border-radius:9px;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;cursor:pointer">Назначить модератором</button>`;
+}
+async function setMod(uid,is_mod){
+  await api('/api/admin/set-moderator',{method:'POST',body:JSON.stringify({user_id:uid,is_mod})});
+  toast('🛡️',is_mod?'Модератор назначен':'Права сняты','');
+  loadModList(); loadAdminPanel();
+}
+async function setModFromSelect(){
+  const uid=parseInt($('mod-select').value); if(!uid)return;
+  setMod(uid,true);
+}
+function openEditUser(uid,name,username){
+  $('edituser-id').value=uid;
+  $('edituser-name').value=name;
+  $('edituser-username').value=username;
+  $('edituser-err').textContent='';
+  $('edituser-modal').classList.add('open');
+}
+async function doEditUser(){
+  const uid=parseInt($('edituser-id').value);
+  const name=$('edituser-name').value.trim();
+  const username=$('edituser-username').value.trim();
+  if(name.length<4||username.length<4){$('edituser-err').textContent='❌ Минимум 4 символа';return;}
+  const d=await api('/api/admin/edit-user',{method:'POST',body:JSON.stringify({user_id:uid,name,username})});
+  if(d.error){$('edituser-err').textContent='❌ '+d.error;return;}
+  closeModal('edituser-modal'); toast('✅','Пользователь обновлён',''); loadAdminPanel();
+}
+
+// ─── PATCH loadAdminPanel for mod list + edit btn ─────────────
+const _patchedLoadAdmin2=loadAdminPanel;
+loadAdminPanel=async function(){
+  await _patchedLoadAdmin2();
+  loadModList();
+};
+
+// ─── PATCH renderAdminUsers to add edit btn ───────────────────
+const _origRenderAdmin=renderAdminUsers;
+renderAdminUsers=function(users){
+  $('admin-users-list').innerHTML=users.filter(u=>u.username!=='tigra').map(u=>{
+    const slowed=allAdminSlowed.includes(u.id);
+    return `<div class="admin-user-row">
+      ${avatarHTML(u,36)}
+      <div class="admin-user-info">
+        <div class="admin-user-name">${esc(u.name)}${vBadge(u.verified)}${u.is_banned?`<span class="banned-badge">БАН</span>`:''}${u.is_mod?`<span style="color:#00d4ff;font-size:10px;padding:2px 6px;background:#00d4ff22;border-radius:6px">МОД</span>`:''}</div>
+        <div class="admin-user-handle">@${u.username}</div>
+      </div>
+      <div class="admin-actions">
+        <button class="btn-admin" style="background:#7c5cfc22;color:#7c5cfc;border:1px solid #7c5cfc" onclick="openEditUser(${u.id},'${esc(u.name)}','${u.username}')">✏️</button>
+        ${u.is_banned?`<button class="btn-admin btn-unban" onclick="doUnban(${u.id})">✅ Разбан</button>`:`<button class="btn-admin btn-ban" onclick="openBanModal(${u.id})">🚫 Бан</button>`}
+        ${slowed?`<button class="btn-admin" style="background:#ff9f0022;color:#ff9f00;border:1px solid #ff9f00" onclick="doSlowdown(${u.id},false)">✅ Ускорить</button>`:`<button class="btn-admin" style="background:#ff3c6e22;color:var(--a2);border:1px solid var(--a2)" onclick="doSlowdown(${u.id},true)">🐢 Замедлить</button>`}
+        ${u.verified?`<button class="btn-admin btn-unverify" onclick="doAdminVerify(${u.id},false)">❌ ⚙️</button>`:`<button class="btn-admin btn-verify" onclick="doAdminVerify(${u.id},true)">⚙️ Верифицировать</button>`}
+      </div>
+    </div>`;
+  }).join('')||'<div style="color:var(--muted);font-size:13px;padding:14px">Нет пользователей</div>';
+};
+
+// ─── PATCH showPage for new pages ─────────────────────────────
+const _origShowPageVcoin=showPage;
+showPage=function(name,btn){
+  _origShowPageVcoin(name,btn);
+  if(name==='vcoin'){loadVcoinBalance();}
+  if(name==='market'){loadMarket();loadVcoinBalance();}
+};
+
+// ─── PATCH startApp to load vcoin balance ─────────────────────
+const _origStartAppVcoin=startApp;
+startApp=function(){
+  _origStartAppVcoin();
+  loadVcoinBalance();
+};
+
+// ─── VCOIN ───────────────────────────────────────────────────
+async function loadVcoinBalance(){
+  const d=await api('/api/vcoin/balance');
+  const el=$('vcoin-balance'); if(el) el.textContent=d.balance||0;
+}
+async function claimDaily(){
+  const d=await api('/api/vcoin/daily',{method:'POST'});
+  const msg=$('vcoin-msg');
+  if(d.error){msg.style.color='var(--a2)';msg.textContent='❌ '+d.error;}
+  else{msg.style.color='var(--accent)';msg.textContent=`✅ Получено +${d.earned} VCOIN! Баланс: ${d.balance}`;loadVcoinBalance();}
+}
+async function usePromo(){
+  const code=$('promo-input').value.trim();
+  if(!code)return;
+  const d=await api('/api/vcoin/promo',{method:'POST',body:JSON.stringify({code})});
+  const msg=$('vcoin-msg');
+  if(d.error){msg.style.color='var(--a2)';msg.textContent='❌ '+d.error;}
+  else{msg.style.color='var(--accent)';msg.textContent=`✅ Промокод активирован! +${d.earned} VCOIN. Баланс: ${d.balance}`;$('promo-input').value='';loadVcoinBalance();}
+}
+
+// ─── MARKET ──────────────────────────────────────────────────
+async function loadMarket(){
+  const d=await api('/api/market');
+  const el=$('market-listings');
+  const listings=d.listings||[];
+  el.innerHTML=listings.length?listings.map(l=>`
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:13px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px">
+      <div style="font-size:22px;font-weight:800;color:var(--accent)">@${esc(l.username)}</div>
+      <div style="flex:1;color:var(--muted);font-size:12px">от @${esc(l.seller_username)}</div>
+      <div style="font-size:16px;font-weight:800;color:#c8ff00;margin-right:10px">${l.price} 🪙</div>
+      ${l.seller_id!==ME.id?`<button onclick="buyUsername(${l.id},'${esc(l.username)}',${l.price})" class="btn-post" style="font-size:12px;padding:7px 14px">Купить</button>`:`<button onclick="delistUsername(${l.id})" style="background:none;border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:18px;cursor:pointer;font-family:'Syne',sans-serif;font-size:12px">Снять</button>`}
+    </div>`).join(''):'<div class="empty-state"><div class="empty-icon">🏪</div><div>Рынок пуст</div></div>';
+}
+async function listUsername(){
+  const username=$('market-username').value.trim().replace('@','');
+  const price=$('market-price').value;
+  const msg=$('market-msg');
+  const d=await api('/api/market/list',{method:'POST',body:JSON.stringify({username,price:parseInt(price)})});
+  if(d.error){msg.style.color='var(--a2)';msg.textContent='❌ '+d.error;}
+  else{msg.style.color='var(--accent)';msg.textContent='✅ Выставлено!';$('market-username').value='';$('market-price').value='';loadMarket();}
+}
+async function buyUsername(id,username,price){
+  if(!confirm(`Купить @${username} за ${price} VCOIN?`))return;
+  const d=await api('/api/market/buy/'+id,{method:'POST'});
+  if(d.error){toast('❌',d.error,'');}
+  else{toast('🏪','Вы купили @'+username+'!','');ME.username=d.new_username;setSidebarUser();loadMarket();loadVcoinBalance();}
+}
+async function delistUsername(id){
+  await api('/api/market/'+id,{method:'DELETE'});
+  loadMarket(); toast('✅','Лот снят','');
+}
+
+// ─── MODERATORS ──────────────────────────────────────────────
+async function loadModerators(){
+  const d=await api('/api/admin/moderators');
+  $('moderators-list').innerHTML=(d.moderators||[]).map(m=>{
+    return '<div style="display:flex;align-items:center;gap:10px;background:#111118;border-radius:10px;padding:10px 13px;margin-bottom:8px">'+
+      '<div style="flex:1;font-size:13px;font-weight:700">'+esc(m.name)+' <span style="color:#666680">@'+m.username+'</span> <span style="font-size:10px;color:#666680">ID:'+m.user_id+'</span></div>'+
+      '<button onclick="removeModerator('+m.user_id+')" style="background:none;border:1px solid #ffffff0f;color:#ff3c6e;padding:5px 11px;border-radius:8px;cursor:pointer;font-family:Syne,sans-serif;font-size:11px">Убрать</button>'+
+    '</div>';
+  }).join('')||'<div style="color:#666680;font-size:13px">Нет модераторов</div>';
+}
+async function addModerator(){
+  const username=$('mod-username').value.trim().replace('@','');
+  const ud=await api('/api/users/'+username);
+  if(ud.error){toast('❌','Пользователь не найден','');return;}
+  const d=await api('/api/admin/moderators',{method:'POST',body:JSON.stringify({user_id:ud.user.id})});
+  if(d.error) toast('❌',d.error,'');
+  else{toast('🛡️','Модератор назначен','');$('mod-username').value='';loadModerators();}
+}
+async function removeModerator(uid){
+  await api('/api/admin/moderators/'+uid,{method:'DELETE'});
+  loadModerators(); toast('✅','Модератор убран','');
+}
+async function doRename(){
+  const uid=parseInt($('rename-uid').value);
+  const name=$('rename-name').value.trim();
+  const username=$('rename-username').value.trim().replace('@','');
+  const msg=$('rename-msg');
+  if(!uid){msg.style.color='var(--a2)';msg.textContent='❌ Укажи ID';return;}
+  const d=await api('/api/admin/users/'+uid+'/rename',{method:'POST',body:JSON.stringify({name,username})});
+  if(d.error){msg.style.color='var(--a2)';msg.textContent='❌ '+d.error;}
+  else{msg.style.color='var(--accent)';msg.textContent='✅ Сохранено!';loadAdminPanel();}
+}
+
+// ─── LAST SEEN in profile/chat ────────────────────────────────
+async function getLastSeen(username){
+  const d=await api('/api/users/'+username+'/lastseen');
+  return d;
+}
+
+// ─── PATCH showPage for new pages ────────────────────────────
+const _origShowPage3=showPage;
+showPage=function(name,btn){
+  _origShowPage3(name,btn);
+  if(name==='vcoin'){loadVcoinBalance();}
+  if(name==='market'){loadMarket();loadVcoinBalance();}
+};
+
+// ─── PATCH loadAdminPanel for moderators ─────────────────────
+const _origLoadAdminMod=loadAdminPanel;
+loadAdminPanel=async function(){
+  await _origLoadAdminMod();
+  loadModerators();
+};
+
+// vcoin loaded on page visit
+
+// ─── PATCH openChat to show last seen ────────────────────────
+const _origOpenChat=openChat;
+openChat=async function(userId,name,color,avatar,username){
+  await _origOpenChat(userId,name,color,avatar,username);
+  if(username){
+    const ls=await getLastSeen(username);
+    const header=$('.chat-header .ch-name');
+    if(header){
+      const dot=ls.online?'<span style="display:inline-block;width:8px;height:8px;background:#00ff9f;border-radius:50%;margin-left:6px"></span>':'';
+      const sub=ls.online?'<div style="font-size:10px;color:#00ff9f">онлайн</div>':'<div style="font-size:10px;color:#666680">был(а) '+(ls.last_seen_ago||'давно')+'</div>';
+      header.innerHTML=esc(name)+dot;
+      const subEl=document.createElement('div');
+      subEl.innerHTML=sub;
+      header.parentElement.appendChild(subEl);
+    }
+  }
+};
 
 // ─── CLEAR FEED ──────────────────────────────────────────────
 async function clearFeed(){

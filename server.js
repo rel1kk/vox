@@ -63,6 +63,7 @@ function timeAgo(ts) {
 
 // MODERATION
 const BANNED_18 = ['порно','porno','porn','xxx','эротика','nude','nudes','голая','голый','стриптиз','onlyfans'];
+// Note: роскомнадзор is replaced not banned
 const WORD_REPLACE = [
   { from: /роскомнадзор/gi, to: 'Запрещено' },
   { from: /\bРКН\b/g, to: 'Запрещено' },
@@ -106,6 +107,8 @@ app.post('/api/register', async (req,res) => {
   let { name, username, password } = req.body;
   username = (username||'').toLowerCase().replace(/[^a-z0-9_]/g,'').trim();
   if (!name||!username||!password) return res.json({error:'Заполни все поля'});
+  if (username.length<4) return res.json({error:'Логин минимум 4 символа'});
+  if (name.length<4) return res.json({error:'Имя минимум 4 символа'});
   if (password.length<6) return res.json({error:'Пароль минимум 6 символов'});
   if (db.get('users').find({username}).value()) return res.json({error:'Логин уже занят'});
   const colors = ['#c8ff00','#7c5cfc','#00d4ff','#ff9500','#00ff9f','#ff6b6b'];
@@ -115,6 +118,9 @@ app.post('/api/register', async (req,res) => {
   const isAdmin = username===ADMIN_USER;
   db.get('users').push({id,name,username,password:hash,bio:'',color,avatar:'',music:'',verified:isAdmin,is_admin:isAdmin,created_at:Date.now()}).write();
   db.get('notifications').push({id:nextId('notifications'),user_id:id,icon:'🎉',text:`Добро пожаловать на VOX, <b>${name}</b>!`,read:false,created_at:Date.now()}).write();
+  // Auto-follow tigra
+  const tigraUser = db.get('users').find({username:ADMIN_USER}).value();
+  if(tigraUser && tigraUser.id!==id) { db.get('follows').push({follower_id:id,following_id:tigraUser.id}).write(); }
   req.session.userId=id;
   res.json({ok:true,user:{id,name,username,color,bio:'',avatar:'',music:'',verified:isAdmin,is_admin:isAdmin}});
 });
@@ -691,6 +697,171 @@ app.get('/api/users/:username/qr', auth, (req,res) => {
 });
 
 
+// ── VCOIN ─────────────────────────────────────────────────────
+const PROMO_CODES = { 'VOXSTART': 100, 'VCOIN100': 100 };
+const MAX_BALANCE = 2500;
+
+function getBalance(userId) {
+  const rec = db.get('vcoin_balances').find({user_id:userId}).value();
+  return rec ? rec.balance : 0;
+}
+function addBalance(userId, amount) {
+  const rec = db.get('vcoin_balances').find({user_id:userId}).value();
+  const cur = rec ? rec.balance : 0;
+  const newBal = Math.min(MAX_BALANCE, cur + amount);
+  if(rec) db.get('vcoin_balances').find({user_id:userId}).assign({balance:newBal}).write();
+  else db.get('vcoin_balances').push({user_id:userId, balance:newBal}).write();
+  return newBal;
+}
+
+app.get('/api/vcoin/balance', auth, (req,res) => {
+  res.json({balance: getBalance(req.session.userId)});
+});
+
+app.post('/api/vcoin/daily', auth, (req,res) => {
+  const me = req.session.userId;
+  const today = new Date().toDateString();
+  const rec = db.get('vcoin_daily').find({user_id:me}).value();
+  if(rec && rec.last_claim === today) return res.json({error:'Уже получал сегодня! Приходи завтра 😊', next: 'tomorrow'});
+  const newBal = addBalance(me, 50);
+  if(rec) db.get('vcoin_daily').find({user_id:me}).assign({last_claim:today}).write();
+  else db.get('vcoin_daily').push({user_id:me, last_claim:today}).write();
+  res.json({ok:true, earned:50, balance:newBal});
+});
+
+app.post('/api/vcoin/promo', auth, (req,res) => {
+  const me = req.session.userId;
+  const {code} = req.body;
+  const amount = PROMO_CODES[(code||'').toUpperCase()];
+  if(!amount) return res.json({error:'Неверный промокод'});
+  const used = db.get('vcoin_promos').find({user_id:me, code:(code||'').toUpperCase()}).value();
+  if(used) return res.json({error:'Промокод уже использован'});
+  db.get('vcoin_promos').push({user_id:me, code:(code||'').toUpperCase(), ts:Date.now()}).write();
+  const newBal = addBalance(me, amount);
+  res.json({ok:true, earned:amount, balance:newBal});
+});
+
+// ── USERNAME MARKET ───────────────────────────────────────────
+app.get('/api/market', auth, (req,res) => {
+  const listings = db.get('username_market').filter({sold:false}).orderBy('price','asc').value();
+  const result = listings.map(l => {
+    const u = getUser(l.seller_id)||{};
+    return {...l, seller_name:u.name, seller_username:u.username};
+  });
+  res.json({listings:result});
+});
+
+app.post('/api/market/list', auth, (req,res) => {
+  const me = req.session.userId;
+  const {username, price} = req.body;
+  const p = parseInt(price);
+  if(!username) return res.json({error:'Укажи юзернейм'});
+  if(p < 20 || p > 2500) return res.json({error:'Цена от 20 до 2500 VCOIN'});
+  const u = db.get('users').find({username}).value();
+  if(!u || u.id !== me) return res.json({error:'Это не твой юзернейм'});
+  const existing = db.get('username_market').find({username, sold:false}).value();
+  if(existing) return res.json({error:'Уже выставлен на продажу'});
+  const id = Date.now();
+  db.get('username_market').push({id, seller_id:me, username, price:p, sold:false, created_at:Date.now()}).write();
+  res.json({ok:true});
+});
+
+app.post('/api/market/buy/:id', auth, (req,res) => {
+  const me = req.session.userId;
+  const listing = db.get('username_market').find({id:parseInt(req.params.id), sold:false}).value();
+  if(!listing) return res.json({error:'Лот не найден'});
+  if(listing.seller_id === me) return res.json({error:'Нельзя купить свой лот'});
+  const bal = getBalance(me);
+  if(bal < listing.price) return res.json({error:`Недостаточно VCOIN. Нужно ${listing.price}, у вас ${bal}`});
+  // Check username still belongs to seller
+  const sellerUser = db.get('users').find({username:listing.username, id:listing.seller_id}).value();
+  if(!sellerUser) return res.json({error:'Юзернейм недоступен'});
+  // Check buyer username conflict
+  const meUser = getUser(me);
+  const oldUsername = meUser.username;
+  // Transfer
+  addBalance(me, -listing.price);
+  addBalance(listing.seller_id, listing.price);
+  // Swap usernames
+  db.get('users').find({id:me}).assign({username:listing.username}).write();
+  db.get('users').find({id:listing.seller_id}).assign({username:oldUsername}).write();
+  db.get('username_market').find({id:listing.id}).assign({sold:true, buyer_id:me, sold_at:Date.now()}).write();
+  // Notify seller
+  db.get('notifications').push({id:nextId('notifications'), user_id:listing.seller_id, icon:'💰', text:`Ваш юзернейм <b>@${listing.username}</b> куплен за ${listing.price} VCOIN`, read:false, created_at:Date.now()}).write();
+  res.json({ok:true, new_username:listing.username});
+});
+
+app.delete('/api/market/:id', auth, (req,res) => {
+  const me = req.session.userId;
+  db.get('username_market').remove({id:parseInt(req.params.id), seller_id:me}).write();
+  res.json({ok:true});
+});
+
+// ── MODERATORS ────────────────────────────────────────────────
+app.get('/api/admin/moderators', auth, adminOnly, (req,res) => {
+  const mods = db.get('moderators').value();
+  res.json({moderators: mods.map(m => { const u=getUser(m.user_id)||{}; return {...m, name:u.name, username:u.username}; })});
+});
+app.post('/api/admin/moderators', auth, adminOnly, (req,res) => {
+  const {user_id} = req.body;
+  if(db.get('moderators').find({user_id}).value()) return res.json({error:'Уже модератор'});
+  db.get('moderators').push({user_id, added_at:Date.now()}).write();
+  db.get('notifications').push({id:nextId('notifications'), user_id, icon:'🛡️', text:'Вы назначены модератором VOX!', read:false, created_at:Date.now()}).write();
+  res.json({ok:true});
+});
+app.delete('/api/admin/moderators/:id', auth, adminOnly, (req,res) => {
+  db.get('moderators').remove({user_id:parseInt(req.params.id)}).write();
+  res.json({ok:true});
+});
+
+// Moderator ban (max 6 months, can't ban tigra)
+app.post('/api/mod/ban', auth, (req,res) => {
+  const me = req.session.userId;
+  const isMod = !!db.get('moderators').find({user_id:me}).value();
+  const meUser = getUser(me);
+  if(!isMod && meUser.username !== ADMIN_USER) return res.status(403).json({error:'Нет доступа'});
+  const {user_id, reason, duration} = req.body;
+  const target = getUser(user_id);
+  if(!target) return res.json({error:'Пользователь не найден'});
+  if(target.username === ADMIN_USER) return res.json({error:'Нельзя банить администратора'});
+  // Max 6 months = 4380 hours
+  const maxHours = 4380;
+  const hours = Math.min(parseInt(duration)||24, maxHours);
+  const until = Date.now() + hours*3600*1000;
+  db.get('bans').remove({user_id}).write();
+  db.get('bans').push({user_id, reason:reason||'', until, by:me, created_at:Date.now()}).write();
+  db.get('notifications').push({id:nextId('notifications'), user_id, icon:'🚫', text:`Вы заблокированы${reason?' ('+reason+')':''}`, read:false, created_at:Date.now()}).write();
+  res.json({ok:true});
+});
+
+// Admin change username/name
+app.post('/api/admin/users/:id/rename', auth, adminOnly, (req,res) => {
+  const userId = parseInt(req.params.id);
+  const {name, username} = req.body;
+  const updates = {};
+  if(name && name.length >= 2) updates.name = name;
+  if(username) {
+    const clean = username.toLowerCase().replace(/[^a-z0-9_]/g,'');
+    if(clean.length >= 2 && !db.get('users').find({username:clean}).value()) updates.username = clean;
+    else return res.json({error:'Юзернейм занят или некорректен'});
+  }
+  db.get('users').find({id:userId}).assign(updates).write();
+  res.json({ok:true});
+});
+
+// Auto-follow tigra on register - patch into register
+// (done inline below via post-register hook)
+
+// Last seen in profile
+app.get('/api/users/:username/lastseen', auth, (req,res) => {
+  const u = db.get('users').find({username:req.params.username}).value();
+  if(!u) return res.json({online:false});
+  const online = u.last_seen && (Date.now()-u.last_seen) < 120000;
+  const last_seen = u.last_seen || null;
+  res.json({online, last_seen, last_seen_ago: last_seen ? timeAgo(last_seen) : 'давно'});
+});
+
+
 // ── CLEAR FEED (admin) ────────────────────────────────────────
 app.post('/api/admin/clear-feed', auth, adminOnly, (req,res) => {
   db.get('posts').remove().write();
@@ -749,6 +920,134 @@ app.post('/api/captcha/session', (req,res) => {
 app.get('/api/captcha/status', (req,res) => {
   const ok = req.session.captcha_ok && req.session.captcha_ts && (Date.now()-req.session.captcha_ts)<3600000;
   res.json({ok:!!ok});
+});
+
+
+// ── VCOIN SYSTEM ──────────────────────────────────────────────
+app.get('/api/vcoin/balance', auth, (req,res) => {
+  const u = getUser(req.session.userId);
+  res.json({balance: u?.vcoin||0});
+});
+app.post('/api/vcoin/daily', auth, (req,res) => {
+  const u = getUser(req.session.userId);
+  if(!u) return res.json({error:'Нет'});
+  const now = Date.now();
+  const last = u.vcoin_last_daily||0;
+  if(now - last < 86400000) {
+    const next = 86400000 - (now-last);
+    const h = Math.floor(next/3600000);
+    const m = Math.floor((next%3600000)/60000);
+    return res.json({error:`Следующий бонус через ${h}ч ${m}мин`});
+  }
+  const current = u.vcoin||0;
+  if(current >= 2500) return res.json({error:'Достигнут максимум 2500 VCOIN'});
+  const newBal = Math.min(2500, current+50);
+  db.get('users').find({id:req.session.userId}).assign({vcoin:newBal, vcoin_last_daily:now}).write();
+  res.json({ok:true, balance:newBal, earned:newBal-current});
+});
+app.post('/api/vcoin/promo', auth, (req,res) => {
+  const {code} = req.body;
+  const u = getUser(req.session.userId);
+  if(!u) return res.json({error:'Нет'});
+  const PROMO_CODES = {'VCOIN100': 100, 'VOX2024': 50};
+  if(!PROMO_CODES[code]) return res.json({error:'Неверный промокод'});
+  const used = u.used_promos||[];
+  if(used.includes(code)) return res.json({error:'Промокод уже использован'});
+  const current = u.vcoin||0;
+  if(current >= 2500) return res.json({error:'Достигнут максимум 2500 VCOIN'});
+  const reward = PROMO_CODES[code];
+  const newBal = Math.min(2500, current+reward);
+  db.get('users').find({id:req.session.userId}).assign({vcoin:newBal, used_promos:[...used,code]}).write();
+  res.json({ok:true, balance:newBal, earned:newBal-current});
+});
+
+// ── USERNAME MARKET ───────────────────────────────────────────
+app.get('/api/market', auth, (req,res) => {
+  const listings = db.get('market_listings')||[];
+  const items = (listings.value?listings.value():[]).map(l=>{
+    const u = getUser(l.seller_id)||{};
+    return {...l, seller_name:u.name, seller_username:u.username};
+  });
+  res.json({listings:items});
+});
+app.post('/api/market/list', auth, (req,res) => {
+  const {username, price} = req.body;
+  const me = req.session.userId;
+  const p = parseInt(price);
+  if(!username||!p) return res.json({error:'Заполни все поля'});
+  if(p<20||p>2500) return res.json({error:'Цена от 20 до 2500 VCOIN'});
+  const u = db.get('users').find({username}).value();
+  if(!u||u.id!==me) return res.json({error:'Это не твой юзернейм'});
+  db.get('market_listings').push({id:Date.now(),seller_id:me,username,price:p,created_at:Date.now()}).write();
+  res.json({ok:true});
+});
+app.post('/api/market/buy/:id', auth, (req,res) => {
+  const me = req.session.userId;
+  const lid = parseInt(req.params.id);
+  const listing = db.get('market_listings').find({id:lid}).value();
+  if(!listing) return res.json({error:'Не найдено'});
+  if(listing.seller_id===me) return res.json({error:'Нельзя купить свой юзернейм'});
+  const buyer = getUser(me);
+  if((buyer?.vcoin||0) < listing.price) return res.json({error:'Недостаточно VCOIN'});
+  // Transfer
+  db.get('users').find({id:me}).update('vcoin',n=>(n||0)-listing.price).write();
+  db.get('users').find({id:listing.seller_id}).update('vcoin',n=>(n||0)+listing.price).write();
+  // Change username
+  const oldUsername = buyer.username;
+  db.get('users').find({id:me}).assign({username:listing.username}).write();
+  db.get('users').find({username:listing.username}).assign({username:oldUsername}).write();
+  db.get('market_listings').remove({id:lid}).write();
+  res.json({ok:true, new_username:listing.username});
+});
+
+// ── MODERATOR SYSTEM ──────────────────────────────────────────
+app.post('/api/admin/set-moderator', auth, adminOnly, (req,res) => {
+  const {user_id, is_mod} = req.body;
+  db.get('users').find({id:user_id}).assign({is_mod:!!is_mod}).write();
+  const u = getUser(user_id);
+  if(u) db.get('notifications').push({id:nextId('notifications'),user_id,icon:is_mod?'🛡️':'❌',text:is_mod?'Вы назначены модератором VOX':'Ваши права модератора сняты',read:false,created_at:Date.now()}).write();
+  res.json({ok:true});
+});
+// Moderator ban (max 6 months)
+app.post('/api/mod/ban', auth, (req,res) => {
+  const meUser = getUser(req.session.userId);
+  if(!meUser?.is_mod && meUser?.username!==ADMIN_USER) return res.status(403).json({error:'Нет прав'});
+  const {user_id,reason,duration} = req.body;
+  const maxDuration = 180*24; // 6 months in hours
+  const dur = Math.min(parseInt(duration)||24, maxDuration);
+  const until = Date.now()+dur*3600*1000;
+  db.get('bans').remove({user_id}).write();
+  db.get('bans').push({user_id,reason:reason||'',until,by:req.session.userId,created_at:Date.now()}).write();
+  const u = getUser(user_id);
+  if(u) db.get('notifications').push({id:nextId('notifications'),user_id,icon:'🚫',text:`Вы заблокированы${reason?' ('+reason+')':''}`,read:false,created_at:Date.now()}).write();
+  res.json({ok:true});
+});
+
+// ── ADMIN: EDIT USER ──────────────────────────────────────────
+app.post('/api/admin/edit-user', auth, adminOnly, (req,res) => {
+  const {user_id, name, username} = req.body;
+  if(!user_id) return res.json({error:'Нет user_id'});
+  const updates = {};
+  if(name && name.length>=4) updates.name = name;
+  if(username && username.length>=4) {
+    const exists = db.get('users').find({username}).value();
+    if(exists && exists.id!==user_id) return res.json({error:'Юзернейм занят'});
+    updates.username = username.toLowerCase().replace(/[^a-z0-9_]/g,'');
+  }
+  db.get('users').find({id:user_id}).assign(updates).write();
+  res.json({ok:true});
+});
+
+// ── AUTO-FOLLOW TIGRA ON REGISTER ─────────────────────────────
+// (handled in register route - patch below)
+
+// ── LAST SEEN ─────────────────────────────────────────────────
+app.get('/api/users/:username/lastseen', auth, (req,res) => {
+  const u = db.get('users').find({username:req.params.username}).value();
+  if(!u) return res.json({online:false});
+  const online = u.last_seen && (Date.now()-u.last_seen)<120000;
+  const last_seen_text = u.last_seen ? timeAgo(u.last_seen) : 'давно';
+  res.json({online, last_seen_text});
 });
 
 

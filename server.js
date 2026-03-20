@@ -874,6 +874,20 @@ app.get('/api/users/:username/lastseen', auth, (req,res) => {
 });
 
 
+// ── ADMIN VCOIN ──────────────────────────────────────────────
+app.post('/api/admin/vcoin/add', auth, adminOnly, (req,res) => {
+  const {user_id, amount} = req.body;
+  const uid = user_id || req.session.userId;
+  const amt = parseInt(amount) || 1000;
+  // Admin can exceed normal max
+  const rec = db.get('vcoin_balances').find({user_id:uid}).value();
+  const cur = rec ? rec.balance : 0;
+  const newBal = cur + amt;
+  if(rec) db.get('vcoin_balances').find({user_id:uid}).assign({balance:newBal}).write();
+  else db.get('vcoin_balances').push({user_id:uid, balance:newBal}).write();
+  res.json({ok:true, balance:newBal});
+});
+
 // ── CLEAR FEED (admin) ────────────────────────────────────────
 app.post('/api/admin/clear-feed', auth, adminOnly, (req,res) => {
   db.get('posts').remove().write();

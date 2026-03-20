@@ -489,6 +489,10 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
           <div class="sb-handle" id="sb-handle"></div>
         </div>
       </div>
+      <div style="background:var(--surface);border:1px solid #c8ff0030;border-radius:10px;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;cursor:pointer" onclick="showPage('vcoin',$('nav-vcoin'))">
+        <span style="font-size:12px;color:var(--muted)">🪙 VCOIN</span>
+        <span style="font-size:14px;font-weight:800;color:#c8ff00" id="sb-vcoin">0</span>
+      </div>
       <button class="btn-logout" onclick="doLogout()"><span>🚪</span>Выйти</button>
     </div>
   </nav>
@@ -766,6 +770,15 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
         </div>
         <div id="rename-msg" style="font-size:12px;min-height:16px"></div>
       </div>
+      <div class="admin-panel">
+        <div class="admin-title">🪙 Начислить VCOIN</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <input id="admin-vcoin-uid" class="form-input" type="number" placeholder="ID юзера (пусто = себе)" style="width:180px;font-size:13px;padding:10px 13px">
+          <input id="admin-vcoin-amount" class="form-input" type="number" placeholder="Сумма" value="1000" style="width:120px;font-size:13px;padding:10px 13px">
+          <button onclick="adminAddVcoin()" class="btn-post">Начислить 🪙</button>
+        </div>
+        <div id="admin-vcoin-msg" style="font-size:12px;margin-top:8px;min-height:16px"></div>
+      </div>
       <div class="admin-panel" style="border-color:#ff3c6e40">
         <div class="admin-title" style="color:var(--a2)">⚠️ Опасная зона</div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -1018,7 +1031,7 @@ async function init(){
   else { $('auth-screen').style.display='flex'; }
 }
 
-function startApp(){$('auth-screen').style.display='none';$('app').style.display='block';setSidebarUser();setComposerAva();updateMobileUser();if(ME.is_admin)$('nav-admin').style.display='flex';loadFeed();loadNotifBadge();setInterval(loadNotifBadge,20000);feedPollTimer=setInterval(checkNewPosts,10000);}
+function startApp(){$('auth-screen').style.display='none';$('app').style.display='block';setSidebarUser();setComposerAva();updateMobileUser();if(ME.is_admin)$('nav-admin').style.display='flex';loadFeed();loadNotifBadge();loadVcoinBalance();setInterval(loadNotifBadge,20000);setInterval(loadVcoinBalance,60000);feedPollTimer=setInterval(checkNewPosts,10000);}
 function setSidebarUser(){const el=$('sb-ava');if(ME.avatar){el.innerHTML=`<img src="${ME.avatar}" alt="">`;el.style.background='';}else{el.innerHTML='';el.style.background=ME.color||'#c8ff00';el.style.color='#000';el.textContent=(ME.name||'?').slice(0,2).toUpperCase();}$('sb-name').innerHTML=esc(ME.name)+vBadge(ME.verified);$('sb-handle').textContent='@'+ME.username;updateMobileUser();}
 function setComposerAva(){const el=$('comp-ava');if(ME.avatar){el.innerHTML=`<img src="${ME.avatar}" alt="">`;el.style.background='';}else{el.innerHTML='';el.style.background=ME.color||'#c8ff00';el.style.color='#000';el.textContent=(ME.name||'?').slice(0,2).toUpperCase();}}
 
@@ -1882,8 +1895,9 @@ renderAdminUsers=function(users){
 const _origShowPageVcoin=showPage;
 showPage=function(name,btn){
   _origShowPageVcoin(name,btn);
-  if(name==='vcoin'){loadVcoinBalance();}
-  if(name==='market'){loadMarket();loadVcoinBalance();}
+  if(name==='vcoin'){ loadVcoinBalance(); }
+  if(name==='market'){ loadMarket(); loadVcoinBalance(); }
+  if(name==='admin'){ setTimeout(loadVcoinBalance,300); }
 };
 
 // ─── PATCH startApp to load vcoin balance ─────────────────────
@@ -1895,22 +1909,55 @@ startApp=function(){
 
 // ─── VCOIN ───────────────────────────────────────────────────
 async function loadVcoinBalance(){
-  const d=await api('/api/vcoin/balance');
-  const el=$('vcoin-balance'); if(el) el.textContent=d.balance||0;
+  try {
+    const d = await api('/api/vcoin/balance');
+    const bal = d.balance || 0;
+    // update all balance displays
+    ['vcoin-balance','vcoin-balance-2','sb-vcoin'].forEach(id=>{
+      const el=$(id); if(el) el.textContent=bal;
+    });
+    return bal;
+  } catch(e){ return 0; }
 }
+
 async function claimDaily(){
-  const d=await api('/api/vcoin/daily',{method:'POST'});
   const msg=$('vcoin-msg');
-  if(d.error){msg.style.color='var(--a2)';msg.textContent='❌ '+d.error;}
-  else{msg.style.color='var(--accent)';msg.textContent=`✅ Получено +${d.earned} VCOIN! Баланс: ${d.balance}`;loadVcoinBalance();}
+  if(msg){ msg.style.color='var(--muted)'; msg.textContent='⏳ Загрузка...'; }
+  try {
+    const d = await api('/api/vcoin/daily',{method:'POST'});
+    if(d.error){
+      if(msg){ msg.style.color='var(--a2)'; msg.textContent='❌ '+d.error; }
+      toast('🕐', d.error, '');
+    } else {
+      if(msg){ msg.style.color='var(--accent)'; msg.textContent='✅ +'+d.earned+' VCOIN получено! Баланс: '+d.balance; }
+      toast('🪙', '+'+d.earned+' VCOIN!', 'Баланс: '+d.balance);
+      await loadVcoinBalance();
+    }
+  } catch(e){
+    if(msg){ msg.style.color='var(--a2)'; msg.textContent='❌ Ошибка сервера'; }
+  }
 }
+
 async function usePromo(){
-  const code=$('promo-input').value.trim();
-  if(!code)return;
-  const d=await api('/api/vcoin/promo',{method:'POST',body:JSON.stringify({code})});
+  const inp=$('promo-input');
+  const code=(inp?inp.value:'').trim();
   const msg=$('vcoin-msg');
-  if(d.error){msg.style.color='var(--a2)';msg.textContent='❌ '+d.error;}
-  else{msg.style.color='var(--accent)';msg.textContent=`✅ Промокод активирован! +${d.earned} VCOIN. Баланс: ${d.balance}`;$('promo-input').value='';loadVcoinBalance();}
+  if(!code){ if(msg){msg.style.color='var(--a2)';msg.textContent='❌ Введи промокод';} return; }
+  if(msg){ msg.style.color='var(--muted)'; msg.textContent='⏳...'; }
+  try {
+    const d = await api('/api/vcoin/promo',{method:'POST',body:JSON.stringify({code})});
+    if(d.error){
+      if(msg){ msg.style.color='var(--a2)'; msg.textContent='❌ '+d.error; }
+      toast('❌', d.error, '');
+    } else {
+      if(msg){ msg.style.color='var(--accent)'; msg.textContent='✅ +'+d.earned+' VCOIN! Баланс: '+d.balance; }
+      toast('🎟️', '+'+d.earned+' VCOIN по промокоду!', '');
+      if(inp) inp.value='';
+      await loadVcoinBalance();
+    }
+  } catch(e){
+    if(msg){ msg.style.color='var(--a2)'; msg.textContent='❌ Ошибка'; }
+  }
 }
 
 // ─── MARKET ──────────────────────────────────────────────────
@@ -1943,6 +1990,25 @@ async function buyUsername(id,username,price){
 async function delistUsername(id){
   await api('/api/market/'+id,{method:'DELETE'});
   loadMarket(); toast('✅','Лот снят','');
+}
+
+// ─── ADMIN VCOIN ─────────────────────────────────────────────
+async function adminAddVcoin(){
+  const uid = $('admin-vcoin-uid').value ? parseInt($('admin-vcoin-uid').value) : null;
+  const amount = parseInt($('admin-vcoin-amount').value) || 1000;
+  const msg = $('admin-vcoin-msg');
+  const body = {amount};
+  if(uid) body.user_id = uid;
+  const d = await api('/api/admin/vcoin/add',{method:'POST',body:JSON.stringify(body)});
+  if(d.ok){
+    msg.style.color='var(--accent)';
+    msg.textContent='✅ Начислено! Новый баланс: '+d.balance+' VCOIN';
+    loadVcoinBalance();
+    toast('🪙','Начислено '+amount+' VCOIN','Баланс: '+d.balance);
+  } else {
+    msg.style.color='var(--a2)';
+    msg.textContent='❌ '+(d.error||'Ошибка');
+  }
 }
 
 // ─── MODERATORS ──────────────────────────────────────────────
@@ -2041,7 +2107,9 @@ function closeMobileMenu(){
 }
 function mobileNav(page){
   closeMobileMenu();
-  showPage(page,$('nav-'+page));
+  // some pages don't have a sidebar nav button - pass null
+  const btn = $('nav-'+page) || null;
+  showPage(page, btn);
 }
 function updateMobileUser(){
   if(!ME) return;

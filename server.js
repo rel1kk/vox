@@ -25,14 +25,26 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-['sessions','public/uploads','public/voices','public/music','public/gifs','public/avatars'].forEach(d => {
+// Use volume for uploads if available
+const UPLOAD_BASE = fs.existsSync('/app/data') ? '/app/data' : path.join(__dirname, 'public');
+['sessions'].forEach(d => {
   const full = path.join(__dirname, d);
   if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
 });
+['uploads','voices','music','gifs','avatars'].forEach(d => {
+  const full = path.join(UPLOAD_BASE, d);
+  if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
+});
+// Serve uploads from volume
+if (fs.existsSync('/app/data')) {
+  ['uploads','voices','music','gifs','avatars'].forEach(d => {
+    app.use('/'+d, express.static(path.join('/app/data', d)));
+  });
+}
 
 function makeStorage(sub) {
   return multer.diskStorage({
-    destination: (req,file,cb) => cb(null, path.join(__dirname,'public',sub)),
+    destination: (req,file,cb) => cb(null, path.join(UPLOAD_BASE, sub)),
     filename: (req,file,cb) => cb(null, Date.now()+'_'+Math.random().toString(36).slice(2)+path.extname(file.originalname))
   });
 }
@@ -708,7 +720,7 @@ function getBalance(userId) {
 function addBalance(userId, amount) {
   const rec = db.get('vcoin_balances').find({user_id:userId}).value();
   const cur = rec ? rec.balance : 0;
-  const newBal = Math.min(MAX_BALANCE, cur + amount);
+  const newBal = amount < 0 ? Math.max(0, cur + amount) : Math.min(MAX_BALANCE, cur + amount);
   if(rec) db.get('vcoin_balances').find({user_id:userId}).assign({balance:newBal}).write();
   else db.get('vcoin_balances').push({user_id:userId, balance:newBal}).write();
   return newBal;
@@ -924,131 +936,6 @@ app.get('/api/captcha/status', (req,res) => {
 
 
 // ── VCOIN SYSTEM ──────────────────────────────────────────────
-app.get('/api/vcoin/balance', auth, (req,res) => {
-  const u = getUser(req.session.userId);
-  res.json({balance: u?.vcoin||0});
-});
-app.post('/api/vcoin/daily', auth, (req,res) => {
-  const u = getUser(req.session.userId);
-  if(!u) return res.json({error:'Нет'});
-  const now = Date.now();
-  const last = u.vcoin_last_daily||0;
-  if(now - last < 86400000) {
-    const next = 86400000 - (now-last);
-    const h = Math.floor(next/3600000);
-    const m = Math.floor((next%3600000)/60000);
-    return res.json({error:`Следующий бонус через ${h}ч ${m}мин`});
-  }
-  const current = u.vcoin||0;
-  if(current >= 2500) return res.json({error:'Достигнут максимум 2500 VCOIN'});
-  const newBal = Math.min(2500, current+50);
-  db.get('users').find({id:req.session.userId}).assign({vcoin:newBal, vcoin_last_daily:now}).write();
-  res.json({ok:true, balance:newBal, earned:newBal-current});
-});
-app.post('/api/vcoin/promo', auth, (req,res) => {
-  const {code} = req.body;
-  const u = getUser(req.session.userId);
-  if(!u) return res.json({error:'Нет'});
-  const PROMO_CODES = {'VCOIN100': 100, 'VOX2024': 50};
-  if(!PROMO_CODES[code]) return res.json({error:'Неверный промокод'});
-  const used = u.used_promos||[];
-  if(used.includes(code)) return res.json({error:'Промокод уже использован'});
-  const current = u.vcoin||0;
-  if(current >= 2500) return res.json({error:'Достигнут максимум 2500 VCOIN'});
-  const reward = PROMO_CODES[code];
-  const newBal = Math.min(2500, current+reward);
-  db.get('users').find({id:req.session.userId}).assign({vcoin:newBal, used_promos:[...used,code]}).write();
-  res.json({ok:true, balance:newBal, earned:newBal-current});
-});
-
 // ── USERNAME MARKET ───────────────────────────────────────────
-app.get('/api/market', auth, (req,res) => {
-  const listings = db.get('market_listings')||[];
-  const items = (listings.value?listings.value():[]).map(l=>{
-    const u = getUser(l.seller_id)||{};
-    return {...l, seller_name:u.name, seller_username:u.username};
-  });
-  res.json({listings:items});
-});
-app.post('/api/market/list', auth, (req,res) => {
-  const {username, price} = req.body;
-  const me = req.session.userId;
-  const p = parseInt(price);
-  if(!username||!p) return res.json({error:'Заполни все поля'});
-  if(p<20||p>2500) return res.json({error:'Цена от 20 до 2500 VCOIN'});
-  const u = db.get('users').find({username}).value();
-  if(!u||u.id!==me) return res.json({error:'Это не твой юзернейм'});
-  db.get('market_listings').push({id:Date.now(),seller_id:me,username,price:p,created_at:Date.now()}).write();
-  res.json({ok:true});
-});
-app.post('/api/market/buy/:id', auth, (req,res) => {
-  const me = req.session.userId;
-  const lid = parseInt(req.params.id);
-  const listing = db.get('market_listings').find({id:lid}).value();
-  if(!listing) return res.json({error:'Не найдено'});
-  if(listing.seller_id===me) return res.json({error:'Нельзя купить свой юзернейм'});
-  const buyer = getUser(me);
-  if((buyer?.vcoin||0) < listing.price) return res.json({error:'Недостаточно VCOIN'});
-  // Transfer
-  db.get('users').find({id:me}).update('vcoin',n=>(n||0)-listing.price).write();
-  db.get('users').find({id:listing.seller_id}).update('vcoin',n=>(n||0)+listing.price).write();
-  // Change username
-  const oldUsername = buyer.username;
-  db.get('users').find({id:me}).assign({username:listing.username}).write();
-  db.get('users').find({username:listing.username}).assign({username:oldUsername}).write();
-  db.get('market_listings').remove({id:lid}).write();
-  res.json({ok:true, new_username:listing.username});
-});
-
-// ── MODERATOR SYSTEM ──────────────────────────────────────────
-app.post('/api/admin/set-moderator', auth, adminOnly, (req,res) => {
-  const {user_id, is_mod} = req.body;
-  db.get('users').find({id:user_id}).assign({is_mod:!!is_mod}).write();
-  const u = getUser(user_id);
-  if(u) db.get('notifications').push({id:nextId('notifications'),user_id,icon:is_mod?'🛡️':'❌',text:is_mod?'Вы назначены модератором VOX':'Ваши права модератора сняты',read:false,created_at:Date.now()}).write();
-  res.json({ok:true});
-});
-// Moderator ban (max 6 months)
-app.post('/api/mod/ban', auth, (req,res) => {
-  const meUser = getUser(req.session.userId);
-  if(!meUser?.is_mod && meUser?.username!==ADMIN_USER) return res.status(403).json({error:'Нет прав'});
-  const {user_id,reason,duration} = req.body;
-  const maxDuration = 180*24; // 6 months in hours
-  const dur = Math.min(parseInt(duration)||24, maxDuration);
-  const until = Date.now()+dur*3600*1000;
-  db.get('bans').remove({user_id}).write();
-  db.get('bans').push({user_id,reason:reason||'',until,by:req.session.userId,created_at:Date.now()}).write();
-  const u = getUser(user_id);
-  if(u) db.get('notifications').push({id:nextId('notifications'),user_id,icon:'🚫',text:`Вы заблокированы${reason?' ('+reason+')':''}`,read:false,created_at:Date.now()}).write();
-  res.json({ok:true});
-});
-
-// ── ADMIN: EDIT USER ──────────────────────────────────────────
-app.post('/api/admin/edit-user', auth, adminOnly, (req,res) => {
-  const {user_id, name, username} = req.body;
-  if(!user_id) return res.json({error:'Нет user_id'});
-  const updates = {};
-  if(name && name.length>=4) updates.name = name;
-  if(username && username.length>=4) {
-    const exists = db.get('users').find({username}).value();
-    if(exists && exists.id!==user_id) return res.json({error:'Юзернейм занят'});
-    updates.username = username.toLowerCase().replace(/[^a-z0-9_]/g,'');
-  }
-  db.get('users').find({id:user_id}).assign(updates).write();
-  res.json({ok:true});
-});
-
-// ── AUTO-FOLLOW TIGRA ON REGISTER ─────────────────────────────
-// (handled in register route - patch below)
-
-// ── LAST SEEN ─────────────────────────────────────────────────
-app.get('/api/users/:username/lastseen', auth, (req,res) => {
-  const u = db.get('users').find({username:req.params.username}).value();
-  if(!u) return res.json({online:false});
-  const online = u.last_seen && (Date.now()-u.last_seen)<120000;
-  const last_seen_text = u.last_seen ? timeAgo(u.last_seen) : 'давно';
-  res.json({online, last_seen_text});
-});
-
 
 app.listen(PORT,()=>console.log(`\n🚀 VOX: http://localhost:${PORT}\n`));

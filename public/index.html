@@ -474,9 +474,7 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
     <button class="nav-item" id="nav-profile" onclick="showPage('profile',this)"><span class="nav-icon">👤</span>Мой профиль</button>
     <button class="nav-item" id="nav-vcoin" onclick="showPage('vcoin',this)"><span class="nav-icon">🪙</span>VCOIN <span id="vcoin-bal" style="margin-left:auto;font-size:11px;color:var(--accent);font-family:'Space Mono',monospace">0</span></button>
     <button class="nav-item" id="nav-market" onclick="showPage('market',this)"><span class="nav-icon">🏪</span>Рынок</button>
-    <button class="nav-item" id="nav-vcoin" onclick="showPage('vcoin',this)"><span class="nav-icon">🪙</span>VCOIN</button>
-    <button class="nav-item" id="nav-market" onclick="showPage('market',this)"><span class="nav-icon">🏪</span>Рынок</button>
-    <button class="nav-item" id="nav-bookmarks" onclick="showPage('bookmarks',this)"><span class="nav-icon">🔖</span>Закладки</button>
+        <button class="nav-item" id="nav-bookmarks" onclick="showPage('bookmarks',this)"><span class="nav-icon">🔖</span>Закладки</button>
     <button class="nav-item" id="nav-notes" onclick="showPage('notes',this)"><span class="nav-icon">📓</span>Заметки</button>
     <button class="nav-item" id="nav-mentions" onclick="showPage('mentions',this)"><span class="nav-icon">@</span>Упоминания</button>
     <button class="nav-item" id="nav-settings" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span>Настройки</button>
@@ -651,36 +649,25 @@ body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-he
     <!-- VCOIN -->
     <div class="page" id="page-vcoin">
       <div class="feed-title" style="margin-bottom:18px">🪙 VCOIN</div>
-      <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #c8ff0030;border-radius:var(--r);padding:24px;margin-bottom:16px;text-align:center">
-        <div style="font-size:13px;color:var(--muted);margin-bottom:8px;font-family:'Space Mono',monospace">ВАШ БАЛАНС</div>
-        <div style="font-size:56px;font-weight:800;color:#c8ff00" id="vcoin-balance">0</div>
-        <div style="font-size:14px;color:var(--muted)">VCOIN</div>
+      <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #c8ff0030;border-radius:16px;padding:32px;margin-bottom:16px;text-align:center">
+        <div style="font-size:12px;color:#666680;margin-bottom:12px;letter-spacing:2px">ВАШ БАЛАНС</div>
+        <div style="font-size:64px;font-weight:800;color:#c8ff00;line-height:1;font-family:'Space Mono',monospace" id="vcoin-balance">...</div>
+        <div style="font-size:16px;color:#666680;margin-top:8px">VCOIN</div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;text-align:center">
-          <div style="font-size:28px;margin-bottom:8px">🎁</div>
-          <div style="font-size:14px;font-weight:700;margin-bottom:4px">Ежедневный бонус</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:14px">+50 VCOIN раз в день</div>
-          <button onclick="claimDaily()" class="btn-post" style="width:100%">Получить</button>
-        </div>
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;text-align:center">
-          <div style="font-size:28px;margin-bottom:8px">🎟️</div>
-          <div style="font-size:14px;font-weight:700;margin-bottom:4px">Промокод</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Введи код и получи монеты</div>
-          <input id="promo-input" class="form-input" placeholder="VCOIN100" style="font-size:13px;padding:8px 12px;margin-bottom:8px">
-          <button onclick="usePromo()" class="btn-post" style="width:100%">Активировать</button>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:12px">
+        <div style="font-size:15px;font-weight:800;margin-bottom:4px">🎁 Ежедневный бонус</div>
+        <div style="font-size:12px;color:#666680;margin-bottom:14px">+50 VCOIN раз в 24 часа. Максимум 2500 VCOIN.</div>
+        <button onclick="claimDaily()" style="width:100%;background:#c8ff00;color:#000;border:none;padding:14px;border-radius:10px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;cursor:pointer">Получить 50 VCOIN</button>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:12px">
+        <div style="font-size:15px;font-weight:800;margin-bottom:4px">🎟️ Промокод</div>
+        <div style="font-size:12px;color:#666680;margin-bottom:14px">Введи промокод и получи монеты</div>
+        <div style="display:flex;gap:10px">
+          <input id="promo-input" placeholder="Введи промокод" style="flex:1;background:#111118;border:1px solid #ffffff0f;color:#f0f0f0;padding:12px 16px;border-radius:10px;font-family:'Syne',sans-serif;font-size:14px;outline:none">
+          <button onclick="usePromo()" style="background:#c8ff00;color:#000;border:none;padding:12px 20px;border-radius:10px;font-family:'Syne',sans-serif;font-size:14px;font-weight:800;cursor:pointer">Применить</button>
         </div>
       </div>
-      <div id="vcoin-msg" style="text-align:center;font-size:13px;min-height:20px;margin-bottom:10px"></div>
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:10px">ℹ️ Как заработать VCOIN</div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.8">
-          🎁 Ежедневный бонус — 50 VCOIN<br>
-          🎟️ Промокоды — до 100 VCOIN<br>
-          🏪 Продажа юзернеймов на рынке<br>
-          📊 Максимум: 2500 VCOIN
-        </div>
-      </div>
+      <div id="vcoin-msg" style="text-align:center;font-size:14px;padding:8px;min-height:24px"></div>
     </div>
 
     <!-- MARKET -->
